@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import pydeck as pdk
 
 # --- page config ---
 st.set_page_config(page_title="POI Recommender", layout="wide")
@@ -69,16 +70,44 @@ if st.button("Recommend"):
 
             coords.append([lat, lon])
 
-        # --- display in 2 columns ---
+        # --- layout ---
         col1, col2 = st.columns([1, 2])
 
-        # table
+        # --- table ---
         with col1:
             st.markdown("### 📋 Details")
             st.dataframe(pd.DataFrame(poi_list), use_container_width=True)
 
-        # map
+        # --- advanced map ---
         with col2:
             st.markdown("### 🗺️ Map View")
+
             map_df = pd.DataFrame(coords, columns=["lat", "lon"])
-            st.map(map_df, zoom=10)
+
+            # center map
+            center_lat = map_df["lat"].mean()
+            center_lon = map_df["lon"].mean()
+
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=map_df,
+                get_position='[lon, lat]',
+                get_radius=300,
+                get_fill_color=[255, 0, 0, 160],
+                pickable=True,
+            )
+
+            view_state = pdk.ViewState(
+                latitude=center_lat,
+                longitude=center_lon,
+                zoom=11,
+                pitch=40,
+            )
+
+            deck = pdk.Deck(
+                layers=[layer],
+                initial_view_state=view_state,
+                tooltip={"text": "Lat: {lat}\nLon: {lon}"}
+            )
+
+            st.pydeck_chart(deck)
