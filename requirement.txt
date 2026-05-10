@@ -1,0 +1,6 @@
+streamlit
+torch
+pandas
+scikit-learn
+folium
+torch-geometric
