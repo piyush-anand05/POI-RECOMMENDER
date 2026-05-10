@@ -1,25 +1,24 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import folium
+from streamlit_folium import st_folium
 
 # --- load dataset ---
 df = pd.read_csv("gowalla_processed.csv")
 
-# --- manual encoding (NO sklearn) ---
+# --- encoding ---
 df['user_id'] = df['user'].astype('category').cat.codes
 df['poi_id'] = df['poi'].astype('category').cat.codes
 
-# reverse mapping
-user_mapping = dict(enumerate(df['user'].astype('category').cat.categories))
 poi_mapping = dict(enumerate(df['poi'].astype('category').cat.categories))
 
 num_users = df['user_id'].nunique()
-num_items = df['poi_id'].nunique()
 
 # --- edges ---
 edges = df[['user_id', 'poi_id']].values
 
-# --- load embeddings ---
+# --- embeddings ---
 user_emb = np.load("user_emb.npy")
 item_emb = np.load("item_emb.npy")
 
@@ -28,27 +27,25 @@ def recommend(user_id, top_k=5):
     scores = user_emb[user_id] @ item_emb.T
 
     interacted = edges[edges[:, 0] == user_id][:, 1]
-
     scores = scores.copy()
     scores[interacted] = -1e9
 
     return scores.argsort()[-top_k:][::-1]
 
 # --- UI ---
-st.title("📍 POI Recommendation System (GNN-based)")
-st.caption("LightGCN-inspired recommender using Gowalla dataset")
+st.title("🌍 Smart POI Recommender")
+st.caption("Graph-based recommendation using LightGCN embeddings")
 
 user_id = st.number_input("Enter User ID", min_value=0, step=1)
 
 if st.button("Recommend"):
 
-    # ✅ validation
     if user_id >= num_users:
-        st.error("Invalid user ID. Please enter a valid ID.")
+        st.error("Invalid user ID")
     else:
         recs = recommend(int(user_id))
 
-        st.subheader("Recommended POIs")
+        st.subheader("📍 Recommended Places")
 
         poi_list = []
         coords = []
@@ -57,17 +54,30 @@ if st.button("Recommend"):
             poi_original = poi_mapping[pid]
             row = df[df['poi'] == poi_original].iloc[0]
 
+            lat = float(row['lat'])
+            lon = float(row['lon'])
+
             poi_list.append({
-                "POI ID": poi_original,
-                "Latitude": row['lat'],
-                "Longitude": row['lon']
+                "Name": f"Location {poi_original}",
+                "Latitude": lat,
+                "Longitude": lon
             })
 
-            coords.append([float(row['lat']), float(row['lon'])])
+            coords.append((lat, lon))
 
-        # ✅ show table
+        # --- show table ---
         st.dataframe(pd.DataFrame(poi_list))
 
-        # ✅ show map
-        map_df = pd.DataFrame(coords, columns=["lat", "lon"])
-        st.map(map_df)
+        # --- better map ---
+        center = coords[0]
+        m = folium.Map(location=center, zoom_start=12, tiles="cartodbpositron")
+
+        for i, (lat, lon) in enumerate(coords):
+            folium.Marker(
+                [lat, lon],
+                popup=f"Location {poi_list[i]['Name']}",
+                tooltip="Click for details",
+                icon=folium.Icon(color="blue", icon="info-sign")
+            ).add_to(m)
+
+        st_folium(m, width=700, height=500)
