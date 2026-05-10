@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import folium
-from streamlit_folium import st_folium
+
+# --- page config ---
+st.set_page_config(page_title="POI Recommender", layout="wide")
 
 # --- load dataset ---
 df = pd.read_csv("gowalla_processed.csv")
 
-# --- encoding ---
+# --- encoding (no sklearn) ---
 df['user_id'] = df['user'].astype('category').cat.codes
 df['poi_id'] = df['poi'].astype('category').cat.codes
 
@@ -18,7 +19,7 @@ num_users = df['user_id'].nunique()
 # --- edges ---
 edges = df[['user_id', 'poi_id']].values
 
-# --- embeddings ---
+# --- load embeddings ---
 user_emb = np.load("user_emb.npy")
 item_emb = np.load("item_emb.npy")
 
@@ -27,6 +28,7 @@ def recommend(user_id, top_k=5):
     scores = user_emb[user_id] @ item_emb.T
 
     interacted = edges[edges[:, 0] == user_id][:, 1]
+
     scores = scores.copy()
     scores[interacted] = -1e9
 
@@ -34,14 +36,16 @@ def recommend(user_id, top_k=5):
 
 # --- UI ---
 st.title("🌍 Smart POI Recommender")
-st.caption("Graph-based recommendation using LightGCN embeddings")
+st.caption("LightGCN-inspired recommendation system using Gowalla dataset")
 
+# --- input ---
 user_id = st.number_input("Enter User ID", min_value=0, step=1)
 
 if st.button("Recommend"):
 
+    # validation
     if user_id >= num_users:
-        st.error("Invalid user ID")
+        st.error("❌ Invalid user ID. Please try a valid one.")
     else:
         recs = recommend(int(user_id))
 
@@ -63,21 +67,18 @@ if st.button("Recommend"):
                 "Longitude": lon
             })
 
-            coords.append((lat, lon))
+            coords.append([lat, lon])
 
-        # --- show table ---
-        st.dataframe(pd.DataFrame(poi_list))
+        # --- display in 2 columns ---
+        col1, col2 = st.columns([1, 2])
 
-        # --- better map ---
-        center = coords[0]
-        m = folium.Map(location=center, zoom_start=12, tiles="cartodbpositron")
+        # table
+        with col1:
+            st.markdown("### 📋 Details")
+            st.dataframe(pd.DataFrame(poi_list), use_container_width=True)
 
-        for i, (lat, lon) in enumerate(coords):
-            folium.Marker(
-                [lat, lon],
-                popup=f"Location {poi_list[i]['Name']}",
-                tooltip="Click for details",
-                icon=folium.Icon(color="blue", icon="info-sign")
-            ).add_to(m)
-
-        st_folium(m, width=700, height=500)
+        # map
+        with col2:
+            st.markdown("### 🗺️ Map View")
+            map_df = pd.DataFrame(coords, columns=["lat", "lon"])
+            st.map(map_df, zoom=10)
