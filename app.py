@@ -5,13 +5,13 @@ import numpy as np
 # --- load dataset ---
 df = pd.read_csv("gowalla_processed.csv")
 
-# --- encoders ---
-from sklearn.preprocessing import LabelEncoder
-user_encoder = LabelEncoder()
-poi_encoder = LabelEncoder()
+# --- manual encoding (NO sklearn) ---
+df['user_id'] = df['user'].astype('category').cat.codes
+df['poi_id'] = df['poi'].astype('category').cat.codes
 
-df['user_id'] = user_encoder.fit_transform(df['user'])
-df['poi_id'] = poi_encoder.fit_transform(df['poi'])
+# reverse mapping
+user_mapping = dict(enumerate(df['user'].astype('category').cat.categories))
+poi_mapping = dict(enumerate(df['poi'].astype('category').cat.categories))
 
 num_users = df['user_id'].nunique()
 num_items = df['poi_id'].nunique()
@@ -19,7 +19,7 @@ num_items = df['poi_id'].nunique()
 # --- edges ---
 edges = df[['user_id', 'poi_id']].values
 
-# --- load embeddings (PRECOMPUTED) ---
+# --- load embeddings ---
 user_emb = np.load("user_emb.npy")
 item_emb = np.load("item_emb.npy")
 
@@ -38,7 +38,7 @@ def recommend(user_id, top_k=5):
 def get_poi_info(poi_ids):
     result = []
     for pid in poi_ids:
-        poi_original = poi_encoder.inverse_transform([pid])[0]
+        poi_original = poi_mapping[pid]
         row = df[df['poi'] == poi_original].iloc[0]
         result.append([float(row['lat']), float(row['lon'])])
     return result
@@ -54,8 +54,5 @@ if st.button("Recommend"):
 
     st.write("Recommended Locations:")
 
-    # Convert to DataFrame for Streamlit map
     map_df = pd.DataFrame(coords, columns=["lat", "lon"])
-
-    # Built-in map (no folium)
     st.map(map_df)
