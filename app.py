@@ -34,25 +34,40 @@ def recommend(user_id, top_k=5):
 
     return scores.argsort()[-top_k:][::-1]
 
-# --- map helper ---
-def get_poi_info(poi_ids):
-    result = []
-    for pid in poi_ids:
-        poi_original = poi_mapping[pid]
-        row = df[df['poi'] == poi_original].iloc[0]
-        result.append([float(row['lat']), float(row['lon'])])
-    return result
-
 # --- UI ---
-st.title("POI Recommendation System")
+st.title("📍 POI Recommendation System (GNN-based)")
+st.caption("LightGCN-inspired recommender using Gowalla dataset")
 
 user_id = st.number_input("Enter User ID", min_value=0, step=1)
 
 if st.button("Recommend"):
-    recs = recommend(int(user_id))
-    coords = get_poi_info(recs)
 
-    st.write("Recommended Locations:")
+    # ✅ validation
+    if user_id >= num_users:
+        st.error("Invalid user ID. Please enter a valid ID.")
+    else:
+        recs = recommend(int(user_id))
 
-    map_df = pd.DataFrame(coords, columns=["lat", "lon"])
-    st.map(map_df)
+        st.subheader("Recommended POIs")
+
+        poi_list = []
+        coords = []
+
+        for pid in recs:
+            poi_original = poi_mapping[pid]
+            row = df[df['poi'] == poi_original].iloc[0]
+
+            poi_list.append({
+                "POI ID": poi_original,
+                "Latitude": row['lat'],
+                "Longitude": row['lon']
+            })
+
+            coords.append([float(row['lat']), float(row['lon'])])
+
+        # ✅ show table
+        st.dataframe(pd.DataFrame(poi_list))
+
+        # ✅ show map
+        map_df = pd.DataFrame(coords, columns=["lat", "lon"])
+        st.map(map_df)
