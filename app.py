@@ -9,7 +9,7 @@ st.set_page_config(page_title="POI Recommender", layout="wide")
 # --- load dataset ---
 df = pd.read_csv("gowalla_processed.csv")
 
-# --- encoding (no sklearn) ---
+# --- encoding ---
 df['user_id'] = df['user'].astype('category').cat.codes
 df['poi_id'] = df['poi'].astype('category').cat.codes
 
@@ -39,13 +39,12 @@ def recommend(user_id, top_k=5):
 st.title("🌍 Smart POI Recommender")
 st.caption("LightGCN-inspired recommendation system using Gowalla dataset")
 
-# --- input ---
 user_id = st.number_input("Enter User ID", min_value=0, step=1)
 
 if st.button("Recommend"):
 
     if user_id >= num_users:
-        st.error("❌ Invalid user ID. Please try a valid one.")
+        st.error("❌ Invalid user ID")
     else:
         recs = recommend(int(user_id))
 
@@ -69,7 +68,6 @@ if st.button("Recommend"):
 
             coords.append([lat, lon])
 
-        # --- layout ---
         col1, col2 = st.columns([1, 2])
 
         # --- table ---
@@ -77,13 +75,12 @@ if st.button("Recommend"):
             st.markdown("### 📋 Details")
             st.dataframe(pd.DataFrame(poi_list), use_container_width=True)
 
-        # --- map ---
+        # --- MAP (FIXED) ---
         with col2:
             st.markdown("### 🗺️ Map View")
 
             map_df = pd.DataFrame(coords, columns=["lat", "lon"])
 
-            # center map globally (Gowalla is global dataset)
             center_lat = map_df["lat"].mean()
             center_lon = map_df["lon"].mean()
 
@@ -91,7 +88,7 @@ if st.button("Recommend"):
                 "ScatterplotLayer",
                 data=map_df,
                 get_position='[lon, lat]',
-                get_radius=50000,   # large so visible
+                get_radius=80000,   # BIGGER so always visible
                 get_fill_color=[255, 0, 0],
                 pickable=True,
             )
@@ -99,13 +96,13 @@ if st.button("Recommend"):
             view_state = pdk.ViewState(
                 latitude=center_lat,
                 longitude=center_lon,
-                zoom=3,   # global zoom
+                zoom=2.5,   # more zoomed out (global)
             )
 
+            # 🚨 KEY FIX: NO map_style (removes Mapbox dependency)
             deck = pdk.Deck(
                 layers=[layer],
                 initial_view_state=view_state,
-                map_style="mapbox://styles/mapbox/light-v9",
                 tooltip={"text": "Lat: {lat}\nLon: {lon}"}
             )
 
