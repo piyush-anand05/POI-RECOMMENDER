@@ -10,9 +10,9 @@ from utils import get_place_name
 st.set_page_config(page_title="POI Recommender", layout="wide")
 
 # --- load data ---
-df = pd.read_csv("data/gowalla_processed.csv")
-user_emb = np.load("data/user_emb.npy")
-item_emb = np.load("data/item_emb.npy")
+df = pd.read_csv("gowalla_processed.csv")
+user_emb = np.load("user_emb.npy")
+item_emb = np.load("item_emb.npy")
 
 rec = Recommender(df, user_emb, item_emb)
 
